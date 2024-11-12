@@ -1,0 +1,8 @@
+numpy
+torch
+librosa
+pydub
+transformers
+pyannote.audio
+speechbrain
+git+https://github.com/openai/whisper.git

@@ -1,0 +1,30 @@
+# Ignore Python virtual environment directory
+venv/
+
+#ignore pretrained models
+pretrained_models/
+
+#ignore audio samples
+audio_samples/
+
+# Ignore Python bytecode files
+*.pyc
+*.pyo
+__pycache__/
+
+# Ignore environment variable files (e.g., .env)
+*.env
+
+# Ignore IDE/editor directories (e.g., VSCode, PyCharm)
+.vscode/
+.idea/
+
+# Ignore system files (macOS and Windows)
+.DS_Store
+Thumbs.db
+
+# Ignore test result files
+nosetests.xml
+coverage.xml
+*.cover
+*.log
