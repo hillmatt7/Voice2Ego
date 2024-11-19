@@ -1,65 +1,80 @@
+# utils/speaker_diarization_wrapper.py
+
 import os
 import torch
 import logging
 import torch.nn.functional as F
-import warnings
-from pyannote.audio import Pipeline
+from pyannote.audio.pipelines.speaker_diarization import SpeakerDiarization
+from pyannote.audio.utils.signal import binarize
+from pyannote.core import SlidingWindowFeature, Annotation
 import librosa
-
-from utils.speaker_diarization_base import SpeakerDiarizationBase
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-class SpeakerDiarizationWrapper(SpeakerDiarizationBase):
-    def __init__(self, hf_token, threshold, verification_model):
+class SpeakerDiarizationWrapper(SpeakerDiarization):
+    def __init__(self, hf_token):
+        super().__init__()
         self.hf_token = hf_token
-        self.threshold = threshold
-        self.pipeline = None
-        self.verification = verification_model  # Use the passed verification model
 
-    def load_pipeline(self):
-        # Load the pyannote.audio pipeline
-        logger.info("Loading pyannote.audio pipeline...")
-        self.pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization",
-            use_auth_token=self.hf_token
+    @classmethod
+    def from_pretrained(cls, model_name_or_path, use_auth_token=None):
+        # Load the base pipeline
+        base_pipeline = super(SpeakerDiarizationWrapper, cls).from_pretrained(
+            model_name_or_path,
+            use_auth_token=use_auth_token
         )
+        # Create an instance of the custom class
+        custom_pipeline = cls(use_auth_token)
+        # Copy attributes from the base pipeline
+        custom_pipeline.__dict__.update(base_pipeline.__dict__)
+        return custom_pipeline
 
-    def diarize(self, audio_path):
-        # Perform diarization
-        logger.info("Performing speaker diarization...")
-        diarization_result = self.pipeline(audio_path)
-        logger.info("Speaker diarization completed.")
-        return diarization_result
 
-    def identify_speakers(self, audio_path, diarization_result, reference_embedding):
-        # Identify segments matching the reference embedding
-        logger.info("Identifying target speaker segments...")
-        target_speaker_segments = []
+def get_embeddings(self, file, segmentation=None, exclude_overlap=False, **kwargs):
+    if segmentation is None:
+        segmentation = self.get_segmentation(file)
+    
+    # Binarize the segmentation to get hard labels
+    hard_segmentation = binarize(segmentation)
+    
+    # Get the timeline of speech segments
+    timeline = hard_segmentation.get_timeline()
 
-        for segment, _, _ in diarization_result.itertracks(yield_label=True):
-            logger.debug(f"Processing segment: {segment}")
+    # Exclude overlapping segments if exclude_overlap is True
+    if exclude_overlap:
+        overlaps = timeline.get_overlap()
+        timeline = timeline.extrude(overlaps)
 
-            # Load segment audio
-            signal, fs = librosa.load(
-                audio_path, sr=16000, offset=segment.start, duration=segment.duration
-            )
-            if len(signal) == 0:
-                continue  # Skip empty segments
+    # Extract waveforms
+    waveforms = []
+    for segment in timeline:
+        waveform, _ = self.audio.crop(file, segment, mode="strict")
+        waveforms.append(waveform)
 
-            signal = torch.from_numpy(signal).unsqueeze(0)
-            # Compute embedding for segment
-            with torch.no_grad():
-                embedding = self.verification.encode_batch(signal).squeeze(0).detach()
-            # Compute similarity score using cosine similarity
-            score = F.cosine_similarity(reference_embedding, embedding, dim=0)
-            # Determine if it's the target speaker
-            if score.item() > self.threshold:
-                logger.debug(f"Segment {segment} matches target speaker with score {score.item()}.")
-                target_speaker_segments.append(segment)
-            else:
-                logger.debug(f"Segment {segment} does not match target speaker (score: {score.item()}).")
+    # Handle empty waveforms
+    waveforms = [w for w in waveforms if w.numel() > 0]
+    if not waveforms:
+        return torch.empty(0)
 
-        logger.info(f"Identified {len(target_speaker_segments)} segments matching the reference speaker.")
-        return target_speaker_segments
+    # Find the maximum length
+    max_length = max([w.shape[1] for w in waveforms])
+
+    # Pad waveforms to the maximum length
+    padded_waveforms = []
+    for waveform in waveforms:
+        length = waveform.shape[1]
+        if length < max_length:
+            pad_size = max_length - length
+            # Pad with zeros at the end
+            padded_waveform = torch.nn.functional.pad(waveform, (0, pad_size))
+            padded_waveforms.append(padded_waveform)
+        else:
+            padded_waveforms.append(waveform)
+
+    # Stack the padded waveforms
+    waveform_batch = torch.vstack(padded_waveforms)
+
+    # Extract embeddings
+    embeddings = self.embedding(waveform_batch)
+    return embeddings
