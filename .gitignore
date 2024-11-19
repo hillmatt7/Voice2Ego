@@ -28,3 +28,6 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
+
+# Ignore hugging face token
+huggingface_token.txt

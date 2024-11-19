@@ -1,5 +1,6 @@
 import os
 import logging
+from set_env import set_huggingface_token
 from utils.audio_processing import extract_audio_from_media, save_target_speaker_audio
 from utils.speaker_identification import get_reference_embedding, diarize_and_identify
 from utils.transcription import transcribe_audio
@@ -65,9 +66,12 @@ def process_media_with_reference(media_path, reference_audio_path):
     return analysis_document
 
 if __name__ == "__main__":
+    # Step 0: Set Hugging Face token from file using set_env
+    set_huggingface_token()
+
     # Use shorter audio files for testing to reduce processing time
-    media_files = ["The Adam Friedland Show - Chris Cuomo.mp3"]  # Replace with your media file
-    reference_audio = "Friedland.mp3"  # Path to your reference audio file
+    media_files = ["temp_audio.mp3"]  # Replace with your media file
+    reference_audio = "reference_audio.mp3"  # Path to your reference audio file
 
     for media in media_files:
         logger.info(f"Processing {media}...")
