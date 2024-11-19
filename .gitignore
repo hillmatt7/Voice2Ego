@@ -31,3 +31,9 @@ coverage.xml
 
 # Ignore hugging face token
 huggingface_token.txt
+
+# Ignore demo audio
+temp_audio.mp3
+temp_audio2.mp3
+temp_audio.wav
+reference_audio.mp3
