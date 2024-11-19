@@ -1,8 +1,10 @@
 numpy
 torch
+torchaudio
 librosa
 pydub
 transformers
 pyannote.audio
-speechbrain
+speechbrain>=1.0.0
+ffmpeg
 git+https://github.com/openai/whisper.git

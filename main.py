@@ -70,7 +70,7 @@ if __name__ == "__main__":
     set_huggingface_token()
 
     # Use shorter audio files for testing to reduce processing time
-    media_files = ["temp_audio.mp3"]  # Replace with your media file
+    media_files = ["temp_audio2.mp3"]  # Replace with your media file
     reference_audio = "reference_audio.mp3"  # Path to your reference audio file
 
     for media in media_files:
